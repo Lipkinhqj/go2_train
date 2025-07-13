@@ -23,14 +23,14 @@ import go2param as gp
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-e", "--exp_name", type=str, default="go2-walking-AddFeetZpos")
-    parser.add_argument("--ckpt", type=int, default=1000)
+    parser.add_argument("-e", "--exp_name", type=str, default="go2-walking-Adddomain")
+    parser.add_argument("--ckpt", type=int, default=19000)
     args = parser.parse_args()
 
     gs.init()
 
     log_dir = f"logs/{args.exp_name}"
-    env_cfg, obs_cfg, reward_cfg, command_cfg, train_cfg = pickle.load(open(f"logs/{args.exp_name}/cfgs.pkl", "rb"))
+    env_cfg, obs_cfg, reward_cfg, command_cfg, train_cfg, domain_rand_cfg, terrain_cfg = pickle.load(open(f"logs/{args.exp_name}/cfgs.pkl", "rb"))
     reward_cfg["reward_scales"] = {}
 
     env = go2EnvCreate(
@@ -39,7 +39,10 @@ def main():
         obs_cfg=obs_cfg,
         reward_cfg=reward_cfg,
         command_cfg=command_cfg,
+        domain_rand_cfg=domain_rand_cfg, 
+        terrain_cfg=terrain_cfg,
         show_viewer=True,
+        train_mode=False,
     )
 
     runner = OnPolicyRunner(env, train_cfg, log_dir, device=gs.device)

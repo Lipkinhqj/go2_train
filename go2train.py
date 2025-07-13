@@ -31,9 +31,9 @@ def main():
     parser = argparse.ArgumentParser(description="train go2.")
 
     # 添加命令行参数
-    parser.add_argument("-e", "--exp_name", type=str, default="go2-walking-AddFeetZpos")
+    parser.add_argument("-e", "--exp_name", type=str, default="go2-walking-Adddomain")
     parser.add_argument("-B", "--num_envs", type=int, default=8192)
-    parser.add_argument("--max_iterations", type=int, default=3001)
+    parser.add_argument("--max_iterations", type=int, default=5001)
     args = parser.parse_args()
 
     # 初始化 Genesis
@@ -41,11 +41,11 @@ def main():
 
     # 配置路径与参数
     log_dir = f"logs/{args.exp_name}"
-    checkpoint_path = os.path.join(log_dir, "model_1000.pt")
+    checkpoint_path = os.path.join(log_dir, "model_14000.pt")
     auto_resume = os.path.exists(checkpoint_path)
 
     # 加载参数
-    env_cfg, obs_cfg, reward_cfg, command_cfg = gp.get_cfgs()
+    env_cfg, obs_cfg, reward_cfg, command_cfg, domain_rand_cfg, terrain_cfg = gp.get_cfgs()
     train_cfg = gp.get_train_cfg(args.exp_name, args.max_iterations)
 
     # 如果不是 resume，清理旧目录，保存配置
@@ -62,7 +62,7 @@ def main():
 
     # 保存训练配置（只有首次训练时保存）
     pickle.dump(
-        [env_cfg, obs_cfg, reward_cfg, command_cfg, train_cfg],
+        [env_cfg, obs_cfg, reward_cfg, command_cfg, train_cfg, domain_rand_cfg, terrain_cfg],
         open(f"{log_dir}/cfgs.pkl", "wb"),
     )
 
@@ -70,22 +70,23 @@ def main():
     #     shutil.rmtree(log_dir)
     # os.makedirs(log_dir, exist_ok=True)
     #环境创建
-    env = go2EnvCreate(args.num_envs, env_cfg, obs_cfg, reward_cfg, command_cfg)
+    env = go2EnvCreate(args.num_envs, env_cfg, obs_cfg, reward_cfg, command_cfg, 
+                       domain_rand_cfg, terrain_cfg)
     runner = OnPolicyRunner(env, train_cfg, log_dir, device=gs.device)
 
     # 如果需要恢复，则加载模型
     if auto_resume:
-        # runner.load(checkpoint_path)
-        ckpt = torch.load(checkpoint_path, map_location=gs.device)
+        runner.load(checkpoint_path)
+        # ckpt = torch.load(checkpoint_path, map_location=gs.device)
 
-        net_attr = "actor_critic"  
-        if not hasattr(runner.alg, net_attr):
-            raise AttributeError(f"runner.alg has no attribute '{net_attr}'")
-        getattr(runner.alg, net_attr).load_state_dict(ckpt["model_state_dict"])
+        # net_attr = "actor_critic"  
+        # if not hasattr(runner.alg, net_attr):
+        #     raise AttributeError(f"runner.alg has no attribute '{net_attr}'")
+        # getattr(runner.alg, net_attr).load_state_dict(ckpt["model_state_dict"])
 
-        # —— 3. 加载归一化状态 —— 
-        runner.obs_normalizer.load_state_dict(ckpt["obs_norm_state_dict"])
-        runner.critic_obs_normalizer.load_state_dict(ckpt["critic_obs_norm_state_dict"])
+        # # —— 3. 加载归一化状态 —— 
+        # runner.obs_normalizer.load_state_dict(ckpt["obs_norm_state_dict"])
+        # runner.critic_obs_normalizer.load_state_dict(ckpt["critic_obs_norm_state_dict"])
     # 启动训练
     runner.learn(
         num_learning_iterations=args.max_iterations,
